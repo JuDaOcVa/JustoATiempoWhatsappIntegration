@@ -1,0 +1,12 @@
+node_modules/
+.env
+npm-debug.log*
+
+# Runtime
+logs/
+*.log
+
+# whatsapp-web.js cache (safe to regenerate)
+.wwebjs_cache/
+.wwebjs_sessions/
+.wwebjs_auth/
