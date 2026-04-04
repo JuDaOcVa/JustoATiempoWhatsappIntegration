@@ -21,7 +21,7 @@ router.post('/send', async (req, res) => {
       });
     }
 
-    if (!isSenderConfigured(remitente)) {
+    if (!(await isSenderConfigured(remitente))) {
       return res.status(400).json({
         ok: false,
         message: 'Remitente no configurado para esta integración',

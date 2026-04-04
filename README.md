@@ -25,14 +25,17 @@ Servidor por defecto: `http://localhost:3000`
 
 ## Configuración para multi-líneas (automática)
 
-Define tus líneas en `.env` con `WHATSAPP_SENDERS`:
+Define la conexión a PostgreSQL en `.env` y la consulta de remitentes activos:
 
 ```env
 APP_TIMEZONE=America/Bogota
-WHATSAPP_SENDERS=573137784186,573100000001,573100000002
+DATABASE_URL=postgres://postgres:tu_password@localhost:5432/deliveryhubdb
+DB_SENDERS_QUERY=SELECT numero FROM linea WHERE fk_estado = 1
 ```
 
 `APP_TIMEZONE` usa formato IANA (ej: `America/Bogota`) y controla cómo se formatean timestamps como `initializedAt` y `qrUpdatedAt`.
+
+`DB_SENDERS_QUERY` debe devolver una columna con el número remitente (por ejemplo: `numero`).
 
 Al levantar la API:
 
@@ -48,6 +51,11 @@ Para obtener el QR de cada línea:
 Para obtener en una sola llamada el estado/QR de todas las líneas:
 
 - `GET /api/sessions/qrs`
+
+Cuando tu backend cree una línea nueva, puede forzar recarga de remitentes con:
+
+- `GET /api/senders/refresh`
+- `GET /senders/refresh`
 
 ## Endpoints
 
@@ -145,9 +153,28 @@ Body (compatible con tu ejemplo):
 }
 ```
 
+### 4) Refrescar remitentes configurados
+
+`GET /api/senders/refresh` o `GET /senders/refresh`
+
+Este endpoint vuelve a consultar `DB_SENDERS_QUERY` y recarga los remitentes configurados desde base de datos.
+
+Respuesta ejemplo:
+
+```json
+{
+	"ok": true,
+	"message": "Remitentes recargados desde base de datos",
+	"data": {
+		"configuredSenders": ["573137784186", "573100000001"],
+		"totalConfigured": 2
+	}
+}
+```
+
 También acepta `mensaje` en minúscula.
 
-Si defines `WHATSAPP_SENDERS`, el remitente del request debe estar dentro de esa lista.
+El remitente del request debe estar en el resultado de `DB_SENDERS_QUERY`.
 
 Respuesta exitosa:
 

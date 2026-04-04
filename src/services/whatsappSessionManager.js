@@ -27,6 +27,10 @@ function getStatus(remitente) {
     return 'initializing';
   }
 
+  if (session.lastError) {
+    return 'error';
+  }
+
   return 'unknown';
 }
 
@@ -43,7 +47,19 @@ async function initializeSession(remitente) {
   const current = getSession(remitente);
 
   if (current) {
-    return current;
+    if (current.ready || current.initializing || current.qr) {
+      return current;
+    }
+
+    if (current.client) {
+      try {
+        await current.client.destroy();
+      } catch (_error) {
+        // No bloquear la reinicialización si la sesión previa ya está destruida.
+      }
+    }
+
+    sessions.delete(remitente);
   }
 
   const session = {
@@ -94,12 +110,16 @@ async function initializeSession(remitente) {
   client.on('auth_failure', (msg) => {
     session.ready = false;
     session.initializing = false;
+    session.qr = null;
+    session.qrUpdatedAt = null;
     session.lastError = `Fallo de autenticación: ${msg}`;
   });
 
   client.on('disconnected', (reason) => {
     session.ready = false;
     session.initializing = false;
+    session.qr = null;
+    session.qrUpdatedAt = null;
     session.lastError = `Sesión desconectada: ${reason}`;
   });
 

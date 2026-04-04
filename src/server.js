@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 
 const apiRoutes = require('./routes/apiRoutes');
+const senderRoutes = require('./routes/senderRoutes');
 const { initializeSessions } = require('./services/whatsappSessionManager');
 const { getConfiguredSenders } = require('./config/senders');
 
@@ -14,6 +15,7 @@ app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
 app.use('/api', apiRoutes);
+app.use('/senders', senderRoutes);
 
 app.use((err, _req, res, _next) => {
   res.status(500).json({
@@ -29,16 +31,17 @@ app.use((err, _req, res, _next) => {
 app.listen(port, () => {
   console.log(`WhatsApp API escuchando en puerto ${port}`);
 
-  const senders = getConfiguredSenders();
+  (async () => {
+    try {
+      const senders = await getConfiguredSenders();
 
-  if (senders.length === 0) {
-    console.log('No hay remitentes en WHATSAPP_SENDERS. Configúralos para inicialización automática.');
-    return;
-  }
+      if (senders.length === 0) {
+        console.log('No hay remitentes activos en la base de datos para inicialización automática.');
+        return;
+      }
 
-  console.log(`Inicializando ${senders.length} sesión(es) configurada(s)...`);
-  initializeSessions(senders)
-    .then((results) => {
+      console.log(`Inicializando ${senders.length} sesión(es) configurada(s)...`);
+      const results = await initializeSessions(senders);
       const ok = results.filter((item) => item.ok).length;
       const failed = results.filter((item) => !item.ok);
 
@@ -46,8 +49,8 @@ app.listen(port, () => {
       failed.forEach((item) => {
         console.error(`No se pudo inicializar ${item.remitente}: ${item.error}`);
       });
-    })
-    .catch((error) => {
-      console.error(`Error inicializando sesiones: ${error.message}`);
-    });
+    } catch (error) {
+      console.error(`Error obteniendo remitentes desde base de datos: ${error.message}`);
+    }
+  })();
 });
