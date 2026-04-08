@@ -73,12 +73,25 @@ async function initializeSession(remitente) {
     client: null
   };
 
+  const puppeteerArgs = [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage',
+    '--disable-gpu'
+  ];
+
+  const puppeteerOptions = {
+    headless: process.env.PUPPETEER_HEADLESS !== 'false',
+    args: puppeteerArgs
+  };
+
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+    puppeteerOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+  }
+
   const client = new Client({
     authStrategy: new LocalAuth({ clientId: `rem-${remitente}` }),
-    puppeteer: {
-      headless: process.env.PUPPETEER_HEADLESS !== 'false',
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    }
+    puppeteer: puppeteerOptions
   });
 
   session.client = client;
