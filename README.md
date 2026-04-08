@@ -229,6 +229,12 @@ Esto guarda credenciales por línea en `.wwebjs_auth` y evita reescanear QR en c
 - `npm run dev` → desarrollo con recarga (`nodemon`)
 - `npm start` → producción
 
+## Despliegue en Railway
+
+Para evitar errores de Puppeteer/Chrome por librerías faltantes en Linux (por ejemplo `libglib-2.0.so.0`), este proyecto incluye un `Dockerfile` que instala Chromium y sus dependencias.
+
+En Railway, usa despliegue basado en Dockerfile (redeploy completo) para que la imagen se reconstruya con esas librerías del sistema.
+
 ## Notas
 
 - Esta API usa formato destino WhatsApp: `receptor@c.us`.
