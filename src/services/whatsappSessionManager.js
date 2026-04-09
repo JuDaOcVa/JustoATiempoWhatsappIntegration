@@ -178,18 +178,25 @@ async function ensureSession(remitente) {
   return initializeSession(remitente);
 }
 
-async function resolveRecipientChatId(client, receptor) {
+async function resolveRecipientChatIds(client, receptor) {
   const normalizedRecipient = normalizePhone(receptor);
-  const fallbackChatId = `${normalizedRecipient}@c.us`;
+  const cUsChatId = `${normalizedRecipient}@c.us`;
+  const candidateChatIds = [cUsChatId];
 
-  // whatsapp-web.js can return @lid for some users/tenants.
-  // Using getNumberId first avoids "new chat not found" in some environments.
+  // Validate recipient with getNumberId while keeping send targets flexible.
+  // Some environments return @lid, but @c.us is still the stable target.
   try {
     if (typeof client.getNumberId === 'function') {
       const numberId = await client.getNumberId(normalizedRecipient);
 
       if (numberId && numberId._serialized) {
-        return numberId._serialized;
+        const serialized = numberId._serialized;
+
+        if (serialized !== cUsChatId) {
+          candidateChatIds.push(serialized);
+        }
+
+        return candidateChatIds;
       }
 
       const notRegisteredError = new Error('El número receptor no está registrado en WhatsApp');
@@ -202,10 +209,15 @@ async function resolveRecipientChatId(client, receptor) {
     }
 
     // Fallback keeps compatibility for environments where getNumberId can fail intermittently.
-    return fallbackChatId;
+    return candidateChatIds;
   }
 
-  return fallbackChatId;
+  return candidateChatIds;
+}
+
+function isNewChatNotFoundError(error) {
+  const message = String(error?.message || '').toLowerCase();
+  return message.includes('new chat not found') || message.includes('findchat');
 }
 
 async function sendMessage({ remitente, receptor, mensaje }) {
@@ -223,8 +235,29 @@ async function sendMessage({ remitente, receptor, mensaje }) {
     throw error;
   }
 
-  const chatId = await resolveRecipientChatId(session.client, normalizedRecipient);
-  const response = await session.client.sendMessage(chatId, mensaje);
+  const candidateChatIds = await resolveRecipientChatIds(session.client, normalizedRecipient);
+  let response = null;
+  let lastError = null;
+
+  for (const chatId of candidateChatIds) {
+    try {
+      response = await session.client.sendMessage(chatId, mensaje);
+      break;
+    } catch (error) {
+      lastError = error;
+
+      // Keep trying candidates when the target chat format does not exist.
+      if (isNewChatNotFoundError(error)) {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  if (!response) {
+    throw lastError || new Error('No fue posible enviar el mensaje al destinatario');
+  }
 
   return {
     remitente,
