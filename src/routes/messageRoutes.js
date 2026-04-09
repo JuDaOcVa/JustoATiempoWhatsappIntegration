@@ -7,8 +7,6 @@ const router = express.Router();
 
 router.post('/send', async (req, res) => {
   try {
-    console.log("Llego la peticion ", req);
-    
     const remitente = normalizePhone(req.body?.remitente);
     const receptor = normalizePhone(req.body?.receptor);
     const mensaje = req.body?.mensaje ?? req.body?.Mensaje;
@@ -66,8 +64,6 @@ router.post('/send', async (req, res) => {
     });
   } catch (error) {
 
-    console.log("ERROR===> ", error);
-    
     if (error.code === 'SESSION_NOT_READY') {
       return res.status(409).json({
         ok: false,
