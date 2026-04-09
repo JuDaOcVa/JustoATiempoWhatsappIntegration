@@ -1,6 +1,6 @@
 {
   "name": "justo-a-tiempo-whatsapp-integration",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "API multi-remitente para envío de WhatsApp con whatsapp-web.js",
   "main": "src/server.js",
   "scripts": {

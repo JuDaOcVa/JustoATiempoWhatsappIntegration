@@ -76,6 +76,17 @@ router.post('/send', async (req, res) => {
       });
     }
 
+    if (error.code === 'RECIPIENT_NOT_REGISTERED') {
+      return res.status(400).json({
+        ok: false,
+        message: 'El número receptor no está registrado en WhatsApp',
+        error: {
+          code: error.code,
+          details: error.message
+        }
+      });
+    }
+
     return res.status(500).json({
       ok: false,
       message: 'No fue posible enviar el mensaje',

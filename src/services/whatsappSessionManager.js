@@ -1,6 +1,7 @@
 const qrcode = require('qrcode');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const { nowInTimezone } = require('../utils/dateTime');
+const { normalizePhone } = require('../utils/phone');
 
 const sessions = new Map();
 
@@ -177,8 +178,39 @@ async function ensureSession(remitente) {
   return initializeSession(remitente);
 }
 
+async function resolveRecipientChatId(client, receptor) {
+  const normalizedRecipient = normalizePhone(receptor);
+  const fallbackChatId = `${normalizedRecipient}@c.us`;
+
+  // whatsapp-web.js can return @lid for some users/tenants.
+  // Using getNumberId first avoids "new chat not found" in some environments.
+  try {
+    if (typeof client.getNumberId === 'function') {
+      const numberId = await client.getNumberId(normalizedRecipient);
+
+      if (numberId && numberId._serialized) {
+        return numberId._serialized;
+      }
+
+      const notRegisteredError = new Error('El número receptor no está registrado en WhatsApp');
+      notRegisteredError.code = 'RECIPIENT_NOT_REGISTERED';
+      throw notRegisteredError;
+    }
+  } catch (error) {
+    if (error.code === 'RECIPIENT_NOT_REGISTERED') {
+      throw error;
+    }
+
+    // Fallback keeps compatibility for environments where getNumberId can fail intermittently.
+    return fallbackChatId;
+  }
+
+  return fallbackChatId;
+}
+
 async function sendMessage({ remitente, receptor, mensaje }) {
   const session = await ensureSession(remitente);
+  const normalizedRecipient = normalizePhone(receptor);
 
   if (!session.ready) {
     const status = getStatus(remitente);
@@ -191,12 +223,12 @@ async function sendMessage({ remitente, receptor, mensaje }) {
     throw error;
   }
 
-  const chatId = `${receptor}@c.us`;
+  const chatId = await resolveRecipientChatId(session.client, normalizedRecipient);
   const response = await session.client.sendMessage(chatId, mensaje);
 
   return {
     remitente,
-    receptor,
+    receptor: normalizedRecipient,
     messageId: response.id ? response.id._serialized : null,
     status: 'sent'
   };
